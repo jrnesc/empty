@@ -31,14 +31,47 @@ jobs:
               }
             }
 
+      - name: Display Error JSON Files
+        if: always()
+        run: |
+          echo "### Error Details" >> $GITHUB_STEP_SUMMARY
+          ERROR_FILES=$(find /tmp -name "gemini-client-error-*.json" 2>/dev/null || true)
+          if [ -n "$ERROR_FILES" ]; then
+            for file in $ERROR_FILES; do
+              echo "#### Error from: $file" >> $GITHUB_STEP_SUMMARY
+              echo '```json' >> $GITHUB_STEP_SUMMARY
+              cat "$file" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "Full error file content:"
+              cat "$file"
+            done
+          else
+            echo "No error files found" >> $GITHUB_STEP_SUMMARY
+          fi
+
       - name: Display Gemini Response
         if: always()
         run: |
           echo "### Gemini Response" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.gemini.outputs.summary }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.gemini.outputs.gemini_response }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Display Errors
-        if: failure()
+        if: always()
         run: |
-          echo "### Errors" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.gemini.outputs.error }}" >> $GITHUB_STEP_SUMMARY
+          echo "### Gemini Errors (stderr)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.gemini.outputs.gemini_errors }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gemini-logs
+          path: |
+            gemini-artifacts/
+            /tmp/gemini-client-error-*.json
+          if-no-files-found: warn
