@@ -1,0 +1,30 @@
+name: Run Gemini CLI
+
+on:
+  workflow_dispatch:  # Manually trigger from Actions tab
+
+jobs:
+  run-gemini:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Gemini CLI
+        uses: google-github-actions/run-gemini-cli@v0.1.14
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          prompt: "You are a helpful assistant."
+          settings: |
+            {
+              "mcpServers": {
+                "cospec": {
+                  "httpUrl": "https://sit.cospec.ai/mcp?deploymentId=50b9cf59-4b55-4516-a6e1-9077a6070640",
+                  "headers": {
+                    "x-auth-header": "${{ secrets.COSPEC_API_TOKEN }}",
+                    "Content-Type": "application/json"
+                  },
+                  "timeout": 5000
+                }
+              }
+            }
