@@ -15,6 +15,7 @@ jobs:
         uses: google-github-actions/run-gemini-cli@v0.1.14
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          gemini_cli_version: 0.12.0-nightly.20251023.c4c0c0d1
           gemini_debug: true
           prompt: "We'd like you to register tools using the cospec tools first!! Reg tools for airtable discover the github issues on there, find the slack message and reply to the thread with hello. in that order thanks xoxo"
           settings: |
