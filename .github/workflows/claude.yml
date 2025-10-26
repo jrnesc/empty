@@ -52,6 +52,7 @@ jobs:
         uses: anthropics/claude-code-base-action@beta
         with:
           prompt_file: /tmp/claude-prompts/task-prompt.txt
+          model: claude-3-5-sonnet-20241022
           claude_args: |
             --mcp-config /tmp/mcp-config/mcp-servers.json
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
