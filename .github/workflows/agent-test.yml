@@ -1,0 +1,16 @@
+name: Agent Test Workflow
+
+on:
+  push:
+    branches:
+      - agent/test
+
+jobs:
+  test-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Step 1 - Print Hello
+        run: echo "Hello from step 1!"
+
+      - name: Step 2 - Print World
+        run: echo "World from step 2!"
