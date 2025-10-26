@@ -23,9 +23,9 @@ jobs:
             {
               "mcpServers": {
                 "cospec": {
-                  "httpUrl": "https://sit.cospec.ai/mcp?deploymentId=50b9cf59-4b55-4516-a6e1-9077a6070640",
+                  "httpUrl": "https://sit.cospec.ai/mcp?deploymentId=e162d8dc-7cec-4b10-bfd8-cfb88e36dfc5",
                   "headers": {
-                    "x-auth-header": "${{ secrets.COSPEC_API_TOKEN }}",
+                    "x-auth-header": "${{ secrets.COSPEC_API_KEY }}",
                     "Content-Type": "application/json"
                   },
                   "timeout": 5000

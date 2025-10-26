@@ -24,9 +24,9 @@ jobs:
             "mcpServers": {
               "cospec-matt-daemon": {
                 "type": "http",
-                "url": "https://sit.cospec.ai/mcp?deploymentId=50b9cf59-4b55-4516-a6e1-9077a6070640",
+                "url": "https://sit.cospec.ai/mcp?deploymentId=e162d8dc-7cec-4b10-bfd8-cfb88e36dfc5",
                 "headers": {
-                  "x-auth-header": "${{ secrets.COSPEC_API_TOKEN }}",
+                  "x-auth-header": "${{ secrets.COSPEC_API_KEY }}",
                   "Content-Type": "application/json"
                 }
               }
@@ -38,7 +38,7 @@ jobs:
         run: |
           mkdir -p /tmp/claude-prompts
           cat > /tmp/claude-prompts/task-prompt.txt <<'EOF'
-          NOTE: When using add_tools to add tools, you must use the execute_tool with the new tool name as a param! :)
+          NOTE: When using mcp__cospec-matt-daemon_cospec_add_tools to add tools, you must use the mcp__cospec-matt-daemon_cospec_execute_tool with the new tool name as a param! :)
 
           We'd like you to add tools using the cospec tools first!!
 
@@ -56,48 +56,3 @@ jobs:
           mcp_config: /tmp/mcp-config/mcp-servers.json
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           anthropic_model: claude-3-5-haiku-20241022
-
-      - name: Display Error JSON Files
-        if: always()
-        run: |
-          echo "### Error Details" >> $GITHUB_STEP_SUMMARY
-          ERROR_FILES=$(find /tmp -name "claude-error-*.json" 2>/dev/null || true)
-          if [ -n "$ERROR_FILES" ]; then
-            for file in $ERROR_FILES; do
-              echo "#### Error from: $file" >> $GITHUB_STEP_SUMMARY
-              echo '```json' >> $GITHUB_STEP_SUMMARY
-              cat "$file" >> $GITHUB_STEP_SUMMARY
-              echo '```' >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "Full error file content:"
-              cat "$file"
-            done
-          else
-            echo "No error files found" >> $GITHUB_STEP_SUMMARY
-          fi
-
-      - name: Display Claude Response
-        if: always()
-        run: |
-          echo "### Claude Response" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.claude.outputs.response }}" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-      - name: Display Errors
-        if: always()
-        run: |
-          echo "### Claude Errors (stderr)" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.claude.outputs.errors }}" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload Artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: claude-logs
-          path: |
-            claude-artifacts/
-            /tmp/claude-error-*.json
-          if-no-files-found: warn

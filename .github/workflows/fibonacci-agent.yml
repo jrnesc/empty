@@ -1,0 +1,142 @@
+name: Fibonacci Bug Fixer Agent
+
+on:
+  push:
+    branches:
+      - agent/fibonacci
+
+jobs:
+  run-claude:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create MCP Config
+        run: |
+          mkdir -p /tmp/mcp-config
+          cat > /tmp/mcp-config/mcp-servers.json <<'EOF'
+          {
+            "mcpServers": {
+              "fibonacci-agent-daemon": {
+                "type": "http",
+                "url": "https://sit.cospec.ai/mcp?deploymentId=1994cfda-630c-44fd-b2ba-f1db2f37091d",
+                "headers": {
+                  "x-auth-header": "${{ secrets.COSPEC_API_KEY }}",
+                  "Content-Type": "application/json"
+                }
+              }
+            }
+          }
+          EOF
+
+      - name: Create Prompt File
+        run: |
+          mkdir -p /tmp/claude-prompts
+          cat > /tmp/claude-prompts/task-prompt.txt <<'EOF'
+          # Fibonacci Issue Agent
+
+          You are an autonomous agent responsible for completing the fibonacci task (GitHub issue #10 in jrnesc/empty).
+
+          ## CRITICAL: Tool Naming Convention
+          - You MUST use the FULL tool names with the server prefix
+          - Format: `mcp__fibonacci-agent-daemon__<tool_name>`
+          - Examples:
+            - `mcp__fibonacci-agent-daemon__cospec_add_tools`
+            - `mcp__fibonacci-agent-daemon__cospec_execute_tool`
+            - `mcp__fibonacci-agent-daemon__cospec_list_active_tools`
+
+          ## Tool Registration & Usage
+          1. **Add tools first**: Use `mcp__fibonacci-agent-daemon__cospec_add_tools` to register tools
+             - Start with GitHub tools: `["github_get_issue", "github_create_pull_request", "github_get_file_contents", "github_create_or_update_file"]`
+             - Add Airtable tools: `["airtable_list_records", "airtable_update_records"]`
+
+          2. **Execute tools**: After adding tools, use `mcp__fibonacci-agent-daemon__cospec_execute_tool` to call them
+             - Example: To get an issue, call `cospec_execute_tool` with `tool_name: "github_get_issue"` and appropriate parameters
+
+          3. **Discover new platforms**: If the GitHub issue mentions other platforms (Slack, Notion, Jira, etc.):
+             - Use `mcp__fibonacci-agent-daemon__cospec_add_tools` to add those platform's tools
+             - Then use `mcp__fibonacci-agent-daemon__cospec_execute_tool` to interact with them
+
+          ## Your Task Steps
+          1. Add GitHub tools and fetch issue #10 from jrnesc/empty
+          2. Read and understand the fibonacci requirements
+          3. Implement the solution (create/modify files as needed)
+          4. Test your implementation if possible
+          5. Create a pull request with your changes
+          6. Add Airtable tools and update the record:
+             - Base ID: appsGwIX0qUbTjmy1
+             - Table ID: tbluySbR77AHalzn7
+             - Record ID: rec170srL7TqKDUzD
+             - Update status field to "Done"
+
+          ## Important Reminders
+          - ALWAYS use full tool names: `mcp__fibonacci-agent-daemon__<tool_name>`
+          - Add tools BEFORE using them
+          - Be autonomous - make reasonable decisions and complete the entire task
+          - Document your approach in the PR description
+
+          Good luck! 🚀
+          EOF
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-base-action@beta
+        with:
+          prompt_file: /tmp/claude-prompts/task-prompt.txt
+          allowed_tools: "mcp__fibonacci-agent-daemon"
+          mcp_config: /tmp/mcp-config/mcp-servers.json
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_model: claude-sonnet-4-20250514
+
+      - name: Display Error JSON Files
+        if: always()
+        run: |
+          echo "### Error Details" >> $GITHUB_STEP_SUMMARY
+          ERROR_FILES=$(find /tmp -name "claude-error-*.json" 2>/dev/null || true)
+          if [ -n "$ERROR_FILES" ]; then
+            for file in $ERROR_FILES; do
+              echo "#### Error from: $file" >> $GITHUB_STEP_SUMMARY
+              echo '```json' >> $GITHUB_STEP_SUMMARY
+              cat "$file" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "Full error file content:"
+              cat "$file"
+            done
+          else
+            echo "No error files found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Display Claude Response
+        if: always()
+        run: |
+          echo "### Claude Response" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.claude.outputs.response }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Display Errors
+        if: always()
+        run: |
+          echo "### Claude Errors (stderr)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.claude.outputs.errors }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fibonacci-agent-logs
+          path: |
+            claude-artifacts/
+            /tmp/claude-error-*.json
+          if-no-files-found: warn

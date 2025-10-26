@@ -25,7 +25,7 @@ jobs:
                 "cospec": {
                   "httpUrl": "${{ vars.MCP_URL || 'YOUR_MCP_URL_HERE' }}",
                   "headers": {
-                    "x-auth-header": "${{ secrets.COSPEC_API_TOKEN }}",
+                    "x-auth-header": "${{ secrets.COSPEC_API_KEY }}",
                     "Content-Type": "application/json"
                   },
                   "timeout": 5000

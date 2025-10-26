@@ -1,7 +1,7 @@
 {
   "servers": {
     "cospec-matt-daemon": {
-      "url": "https://sit.cospec.ai/mcp?deploymentId=50b9cf59-4b55-4516-a6e1-9077a6070640",
+      "url": "https://sit.cospec.ai/mcp?deploymentId=e162d8dc-7cec-4b10-bfd8-cfb88e36dfc5&client=vscode",
       "type": "http"
     }
   }
