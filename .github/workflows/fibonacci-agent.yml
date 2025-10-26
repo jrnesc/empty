@@ -1,0 +1,109 @@
+name: Fibonacci Bug Fixer Agent
+
+on:
+  push:
+    branches:
+      - agent/fibonacci
+
+jobs:
+  run-claude:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create MCP Config
+        run: |
+          mkdir -p /tmp/mcp-config
+          cat > /tmp/mcp-config/mcp-servers.json <<'EOF'
+          {
+            "mcpServers": {
+              "cospec-fibonacci-daemon": {
+                "type": "http",
+                "url": "https://mcp.cospec.ai/mcp?deploymentId=fe43984a-519a-46b4-a48e-7ed91481ebc5",
+                "headers": {
+                  "x-auth-header": "${{ secrets.COSPEC_API_TOKEN }}",
+                  "Content-Type": "application/json"
+                }
+              }
+            }
+          }
+          EOF
+
+      - name: Create Prompt File
+        run: |
+          mkdir -p /tmp/claude-prompts
+          cat > /tmp/claude-prompts/task-prompt.txt <<'EOF'
+          You are a bug fixing agent for the fibonacci issue.
+
+          Your task:
+          1. Register the necessary tools using cospec_add_tools (github and airtable tools)
+          2. Use execute_tool to fetch GitHub issue #10 (fibonacci bug) from https://github.com/jrnesc/empty/issues/10
+          3. Analyze the issue and fix the fibonacci bug
+          4. Update the Airtable record (base: appsGwIX0qUbTjmy1, table: tbluySbR77AHalzn7, record: rec170srL7TqKDUzD) status to "Done"
+          5. Comment on the GitHub issue with your solution
+
+          Remember to use execute_tool for all operations after registering tools!
+          EOF
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-base-action@beta
+        with:
+          prompt_file: /tmp/claude-prompts/task-prompt.txt
+          allowed_tools: "mcp__cospec-fibonacci-daemon"
+          mcp_config: /tmp/mcp-config/mcp-servers.json
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_model: claude-sonnet-4-5-20250929
+
+      - name: Display Error JSON Files
+        if: always()
+        run: |
+          echo "### Error Details" >> $GITHUB_STEP_SUMMARY
+          ERROR_FILES=$(find /tmp -name "claude-error-*.json" 2>/dev/null || true)
+          if [ -n "$ERROR_FILES" ]; then
+            for file in $ERROR_FILES; do
+              echo "#### Error from: $file" >> $GITHUB_STEP_SUMMARY
+              echo '```json' >> $GITHUB_STEP_SUMMARY
+              cat "$file" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "Full error file content:"
+              cat "$file"
+            done
+          else
+            echo "No error files found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Display Claude Response
+        if: always()
+        run: |
+          echo "### Claude Response" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.claude.outputs.response }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Display Errors
+        if: always()
+        run: |
+          echo "### Claude Errors (stderr)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.claude.outputs.errors }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fibonacci-agent-logs
+          path: |
+            claude-artifacts/
+            /tmp/claude-error-*.json
+          if-no-files-found: warn
