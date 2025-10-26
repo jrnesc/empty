@@ -29,7 +29,7 @@ jobs:
                 "type": "http",
                 "url": "https://sit.cospec.ai/mcp?deploymentId=1994cfda-630c-44fd-b2ba-f1db2f37091d",
                 "headers": {
-                  "x-auth-header": "${{ secrets.COSPEC_API_TOKEN }}",
+                  "x-auth-header": "${{ secrets.COSPEC_API_KEY }}",
                   "Content-Type": "application/json"
                 }
               }
