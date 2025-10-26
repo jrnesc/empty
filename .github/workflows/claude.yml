@@ -23,12 +23,12 @@ jobs:
           {
             "mcpServers": {
               "cospec-matt-daemon": {
-                "httpUrl": "https://sit.cospec.ai/mcp?deploymentId=50b9cf59-4b55-4516-a6e1-9077a6070640",
+                "type": "http",
+                "url": "https://sit.cospec.ai/mcp?deploymentId=50b9cf59-4b55-4516-a6e1-9077a6070640",
                 "headers": {
                   "x-auth-header": "${{ secrets.COSPEC_API_TOKEN }}",
                   "Content-Type": "application/json"
-                },
-                "timeout": 5000
+                }
               }
             }
           }
