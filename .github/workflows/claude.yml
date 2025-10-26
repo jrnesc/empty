@@ -22,7 +22,7 @@ jobs:
           cat > /tmp/mcp-config/mcp-servers.json <<'EOF'
           {
             "mcpServers": {
-              "cospec": {
+              "cospec-matt-daemon": {
                 "httpUrl": "https://sit.cospec.ai/mcp?deploymentId=50b9cf59-4b55-4516-a6e1-9077a6070640",
                 "headers": {
                   "x-auth-header": "${{ secrets.COSPEC_API_TOKEN }}",
@@ -38,11 +38,11 @@ jobs:
         run: |
           mkdir -p /tmp/claude-prompts
           cat > /tmp/claude-prompts/task-prompt.txt <<'EOF'
-          NOTE: When using newly added tools, you must use the cospec_execute_tool with the new tool name as a param! :)
+          NOTE: When using add_tools to add tools, you must use the execute_tool with the new tool name as a param! :)
 
-          We'd like you to register tools using the cospec tools first!!
+          We'd like you to add tools using the cospec tools first!!
 
-          Register tools for airtable, discover the github issues on there, find the slack message and reply to the thread with hello.
+          Progressively register tools for airtable, discover the github issues on there, find the slack message and reply to the thread with hello.
 
           In that order thanks xoxo
           EOF
