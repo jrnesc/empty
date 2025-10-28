@@ -1,0 +1,99 @@
+name: Cubes Agent
+
+on:
+  push:
+    branches:
+      - agent/cubes
+
+jobs:
+  run-claude:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create MCP Config
+        run: |
+          mkdir -p /tmp/mcp-config
+          cat > /tmp/mcp-config/mcp-servers.json <<'EOF'
+          {
+            "mcpServers": {
+              "cubes-daemon": {
+                "type": "http",
+                "url": "https://mcp.cospec.ai/mcp?deploymentId=5b43b6f7-01b4-45b0-b53c-1cfa5db20400",
+                "headers": {
+                  "x-auth-header": "${{ secrets.COSPEC_API_KEY }}",
+                  "Content-Type": "application/json"
+                }
+              }
+            }
+          }
+          EOF
+
+      - name: Create Prompt File
+        run: |
+          mkdir -p /tmp/claude-prompts
+          cat > /tmp/claude-prompts/task-prompt.txt <<'EOF'
+          # Cubes Task Agent
+
+          Complete the "cubes" task from the Airtable TODO list.
+
+          ## Task Information
+          - **Issue**: cubes
+          - **Status**: To do
+          - **GitHub Issue**: https://github.com/jrnesc/empty/issues/9
+          - **Airtable Base**: tester (appsGwIX0qUbTjmy1)
+          - **Airtable Table**: Bugs (tbluySbR77AHalzn7)
+          - **Record ID**: recC8TiEPAirKznUu
+
+          ## MCP Configuration
+          - Server: `cubes-daemon`
+          - Deployment: `5b43b6f7-01b4-45b0-b53c-1cfa5db20400`
+
+          ## Tool Usage
+
+          You have access to the Cospec MCP system for dynamic tool registration.
+
+          **CRITICAL**: Always use full tool names: `mcp__cubes-daemon__<tool_name>`
+
+          ### Core Tools
+          - `mcp__cubes-daemon__cospec_add_tools` - Register new tools (must call before using them)
+          - `mcp__cubes-daemon__cospec_execute_tool` - Execute registered tools
+          - `mcp__cubes-daemon__cospec_list_active_tools` - List available tools
+
+          ### Workflow
+          1. Use `cospec_add_tools` to register the tools you need
+          2. Use `cospec_execute_tool` to call registered tools
+          3. Add more tools dynamically as you discover new requirements
+
+          ## Task Details
+
+          Your mission:
+          1. First, fetch the GitHub issue details to understand what needs to be done
+          2. Check if there's hidden information in other apps (Slack, Notion, Google Docs, etc.) that might be relevant
+          3. Implement the solution for the cubes task
+          4. Update the Airtable record status when complete
+          5. Create a pull request with your implementation
+
+          **Important**: There may be hidden information in other apps that provides context or requirements for this task.
+          Investigate Slack threads, Notion pages, or other connected systems to gather all necessary information before implementing.
+
+          Work autonomously. Discover what tools you need, register them, and complete the task.
+          EOF
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-base-action@beta
+        with:
+          prompt_file: /tmp/claude-prompts/task-prompt.txt
+          allowed_tools: "mcp__cubes-daemon"
+          mcp_config: /tmp/mcp-config/mcp-servers.json
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_model: claude-sonnet-4-20250514
