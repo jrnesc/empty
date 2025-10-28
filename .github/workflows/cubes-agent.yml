@@ -1,0 +1,87 @@
+name: Cubes Agent
+
+on:
+  push:
+    branches:
+      - agent/cubes
+
+jobs:
+  run-claude:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create MCP Config
+        run: |
+          mkdir -p /tmp/mcp-config
+          cat > /tmp/mcp-config/mcp-servers.json <<'EOF'
+          {
+            "mcpServers": {
+              "cubes-agent": {
+                "type": "http",
+                "url": "https://mcp.cospec.ai/mcp?deploymentId=26bebd8a-c9ab-43f7-9e16-dd96b57dc50b",
+                "headers": {
+                  "x-auth-header": "${{ secrets.COSPEC_API_KEY }}",
+                  "Content-Type": "application/json"
+                }
+              }
+            }
+          }
+          EOF
+
+      - name: Create Prompt File
+        run: |
+          mkdir -p /tmp/claude-prompts
+          cat > /tmp/claude-prompts/task-prompt.txt <<'EOF'
+          # Cubes Agent
+
+          Complete the "cubes" task from GitHub issue #18.
+
+          ## MCP Configuration
+          - Server: `cubes-agent`
+          - Deployment: `26bebd8a-c9ab-43f7-9e16-dd96b57dc50b`
+
+          ## Tool Usage
+
+          You have access to the Cospec MCP system for dynamic tool registration.
+
+          **CRITICAL**: Always use full tool names: `mcp__cubes-agent__<tool_name>`
+
+          ### Core Tools
+          - `mcp__cubes-agent__cospec_add_tools` - Register new tools (must call before using them)
+          - `mcp__cubes-agent__cospec_execute_tool` - Execute registered tools
+          - `mcp__cubes-agent__cospec_list_active_tools` - List available tools
+
+          ### Workflow
+          1. Use `cospec_add_tools` to register the tools you need (like GitHub tools)
+          2. Use `cospec_execute_tool` to fetch the GitHub issue details for issue #18
+          3. Add more tools dynamically as you discover new requirements
+          4. Complete the task according to the issue requirements
+          5. Create a pull request with your solution
+
+          ## Task Details
+
+          Issue URL: https://github.com/jrnesc/empty/issues/18
+          Status: To do
+
+          Work autonomously. Discover what tools you need, register them, and complete the task.
+          Start by fetching the issue details to understand what needs to be done, then implement the solution.
+          EOF
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-base-action@beta
+        with:
+          prompt_file: /tmp/claude-prompts/task-prompt.txt
+          allowed_tools: "mcp__cubes-agent"
+          mcp_config: /tmp/mcp-config/mcp-servers.json
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_model: claude-sonnet-4-20250514
