@@ -1,0 +1,78 @@
+name: Test Airtable Agent
+
+on:
+  push:
+    branches:
+      - agent/test-airtable
+
+jobs:
+  run-claude:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create MCP Config
+        run: |
+          mkdir -p /tmp/mcp-config
+          cat > /tmp/mcp-config/mcp-servers.json <<'EOF'
+          {
+            "mcpServers": {
+              "test-airtable-daemon": {
+                "type": "http",
+                "url": "https://mcp.cospec.ai/mcp?deploymentId=789c278b-9737-4a41-aa2c-1e627e230491",
+                "headers": {
+                  "x-auth-header": "${{ secrets.COSPEC_API_KEY }}",
+                  "Content-Type": "application/json"
+                }
+              }
+            }
+          }
+          EOF
+
+      - name: Create Prompt File
+        run: |
+          mkdir -p /tmp/claude-prompts
+          cat > /tmp/claude-prompts/task-prompt.txt <<'EOF'
+          # Test Airtable Agent
+
+          Your task is simple: Register exactly ONE Airtable tool and then stop.
+
+          ## MCP Configuration
+          - Server: `test-airtable-daemon`
+          - Deployment: `789c278b-9737-4a41-aa2c-1e627e230491`
+
+          ## Tool Usage
+
+          You have access to the Cospec MCP system for dynamic tool registration.
+
+          **CRITICAL**: Always use full tool names: `mcp__test-airtable-daemon__<tool_name>`
+
+          ### Core Tools
+          - `mcp__test-airtable-daemon__cospec_add_tools` - Register new tools (must call before using them)
+          - `mcp__test-airtable-daemon__cospec_execute_tool` - Execute registered tools
+          - `mcp__test-airtable-daemon__cospec_list_active_tools` - List available tools
+
+          ### Workflow
+          1. Use `cospec_add_tools` to register ONE Airtable tool (such as "airtable_list_bases_info")
+          2. Once you've successfully registered the tool, STOP immediately
+
+          Do not do anything else. Just register one Airtable tool and stop.
+          EOF
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-base-action@beta
+        with:
+          prompt_file: /tmp/claude-prompts/task-prompt.txt
+          allowed_tools: "mcp__test-airtable-daemon"
+          mcp_config: /tmp/mcp-config/mcp-servers.json
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_model: claude-sonnet-4-20250514
