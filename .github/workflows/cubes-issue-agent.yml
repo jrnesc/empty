@@ -1,0 +1,96 @@
+name: Cubes Issue Agent
+
+on:
+  push:
+    branches:
+      - agent/cubes-issue
+
+jobs:
+  run-claude:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create MCP Config
+        run: |
+          mkdir -p /tmp/mcp-config
+          cat > /tmp/mcp-config/mcp-servers.json <<'EOF'
+          {
+            "mcpServers": {
+              "cubes-agent-daemon": {
+                "type": "http",
+                "url": "https://mcp.cospec.ai/mcp?deploymentId=813f144d-a99b-4d8b-b7e6-dd86f4fb6b40",
+                "headers": {
+                  "x-auth-header": "${{ secrets.COSPEC_API_KEY }}",
+                  "Content-Type": "application/json"
+                }
+              }
+            }
+          }
+          EOF
+
+      - name: Create Prompt File
+        run: |
+          mkdir -p /tmp/claude-prompts
+          cat > /tmp/claude-prompts/task-prompt.txt <<'EOF'
+          # Cubes Issue Agent
+
+          You are an autonomous agent tasked with resolving GitHub issue #22 "Cubes!" in the jrnesc/empty repository.
+
+          ## MCP Configuration
+          - Server: `cubes-agent-daemon`
+          - Deployment: `813f144d-a99b-4d8b-b7e6-dd86f4fb6b40`
+
+          ## Tool Usage
+
+          You have access to the Cospec MCP system for dynamic tool registration.
+
+          **CRITICAL**: Always use full tool names: `mcp__cubes-agent-daemon__<tool_name>`
+
+          ### Core Tools
+          - `mcp__cubes-agent-daemon__cospec_add_tools` - Register new tools (must call before using them)
+          - `mcp__cubes-agent-daemon__cospec_execute_tool` - Execute registered tools
+          - `mcp__cubes-agent-daemon__cospec_list_active_tools` - List available tools
+
+          ### Workflow
+          1. Use `cospec_add_tools` to register the tools you need
+          2. Use `cospec_execute_tool` to call registered tools
+          3. Add more tools dynamically as you discover new requirements
+
+          ## Task Details
+
+          ### Issue Information
+          - **Repository**: jrnesc/empty
+          - **Issue Number**: #22
+          - **Title**: Cubes!
+          - **Related**: Linear issue COS-9/cos-12-cubes
+          - **Related PR**: #23 (Add cubeRoot.ts with Newton's method implementation)
+
+          ### Your Mission
+          1. Register GitHub tools (github_get_issue, github_list_issues, github_get_pull_request, github_add_issue_comment)
+          2. Review issue #22 and understand the requirements
+          3. Examine PR #23 to see if it addresses the issue
+          4. Review the code in PR #23 for quality and completeness
+          5. Add a comment to the issue summarizing your findings
+          6. If needed, suggest improvements or additional work
+
+          Work autonomously. Discover what tools you need, register them, and complete the task.
+          EOF
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-base-action@beta
+        with:
+          prompt_file: /tmp/claude-prompts/task-prompt.txt
+          allowed_tools: "mcp__cubes-agent-daemon"
+          mcp_config: /tmp/mcp-config/mcp-servers.json
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_model: claude-sonnet-4-20250514
